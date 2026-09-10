@@ -104,7 +104,7 @@ Go's web search goes through an Anthropic Messages endpoint. That fetch happens 
 
 ### 3. headless
 
-**Plugins are per profile**: installing into web gives headless nothing, and `dsh --profile headless "..."` without the header is rejected by the gateway with the same 400. To use the Go gateway from headless, install it there as well :
+**Plugins are per profile**: installing into web gives headless nothing, and `dsh --profile headless "..."` without the header is rejected by the gateway with the same 400. To use the Go gateway from headless, install it there as well:
 
 ```sh
 dsh plugin --profile headless add github:EmotionTowel/dsh-session-header
