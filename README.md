@@ -63,6 +63,72 @@ dsh --patch ./my-overlay.yml
 | `toolEndpoints` | string[] | `[]` | 工具执行期匹配的 URL 前缀。非空时，`tools/execute` 瀑布内的 fetch（例如工具里调用的网关 web-search Messages API）仅当 URL 以某前缀开头才注入 header——第三方工具目标（web_fetch 抓任意网页、GitHub、MCP 服务器等）不受影响。默认空 = 保持原有仅 LLM 注入行为 |
 | `overwriteHeaders` | string[] | `[]` | 允许本插件**覆盖**已有值的 header 名列表；未列出的头仍遵守"不覆盖"规则。某些官方 provider 会硬编码占位值（如 `dsh-web-search-deepseek` 发送 `x-opencode-session: dsh-web-search`），网关会当作缺失拒绝；把该头列入（`overwriteHeaders: [x-opencode-session]`）即可用真实的会话 id 替换占位值。大小写不敏感。 |
 
+## 适配 OpenCode Go 网关
+
+[OpenCode Go](https://opencode.ai/docs/go/) 是 $10/月的订阅网关，其文档要求每个请求带稳定的 session header（`x-opencode-session`）；缺失的请求会被路由层直接拒绝：
+
+```
+400 {"type":"MissingSessionID","message":"... Request is missing x-opencode-session ..."}
+```
+
+该页的 "Known Problematic Clients" 一节也点名了 DeepSeek Harness（session 信息在部分模型路径上缺失）。按下面三步配置即可完整适配，**不需要再查 OpenCode Go 文档**。
+
+### 1. 会话请求（LLM）
+
+把注入的 header 名改成网关要求的那个：
+
+```yaml
+# ~/.dsh/profiles/<name>/cordis.patch.yml
+- id: session-header
+  config:
+    header: x-opencode-session
+    toolEndpoints:
+      - https://opencode.ai/zen/go/v1
+```
+
+### 2. web-search（工具执行期的网关 fetch）
+
+Go 的 web-search 走 Anthropic Messages 端点，那次 fetch 发生在**工具执行期**、不在 LLM 调用流里，所以只有靠 `toolEndpoints` 才能把它纳入注入范围；再加 `overwriteHeaders`，以防某个组件硬编码占位值（网关会把占位值当作缺失而拒绝）：
+
+```yaml
+- id: session-header
+  config:
+    header: x-opencode-session
+    toolEndpoints:
+      - https://opencode.ai/zen/go/v1
+    overwriteHeaders:
+      - x-opencode-session
+```
+
+> `toolEndpoints` 只匹配 URL 前缀，因此 web_fetch 抓任意网页、GitHub、MCP 服务器等第三方目标不受影响。
+
+### 3. headless
+
+**每个 profile 的插件是独立的**：装进 web 不会让 headless 也有；而 `dsh --profile headless "..."` 缺 header 会被网关以同样的 400 拒绝。要用 Go 网关跑 headless，就得给它也装一遍（来源用上面「安装」节的同一个 spec）：
+
+```sh
+dsh plugin --profile headless add <上面「安装」节用的来源>
+```
+
+```yaml
+# ~/.dsh/profiles/headless/cordis.patch.yml
+- id: session-header
+  config:
+    header: x-opencode-session
+    toolEndpoints:
+      - https://opencode.ai/zen/go/v1
+```
+
+验证（`exit=0` 且模型正常回答即为通过）：
+
+```sh
+dsh --profile headless "运行 pwsh 命令 Get-Random -Maximum 1000000，只回复该数字"
+```
+
+### 不需要本插件的场景
+
+直连 DeepSeek 官方 API（`api.deepseek.com`）时**不需要**本节任何配置——`llm-deepseek` adapter 自身每次请求已带 `x-deepseek-harness-session-id`。
+
 ## 验证
 
 把某个 provider 的 `baseURL` 指向会记录请求 header 的网关（或任何回显请求头的端点），开一个会话：
@@ -82,3 +148,4 @@ x-session-id: ba104306-a748-4052-a6e3-ab60be2e4c1f
 ## 许可
 
 [MIT](LICENSE)
+
