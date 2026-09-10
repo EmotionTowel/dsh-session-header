@@ -1,5 +1,5 @@
 # The layer applied when a profile lists this bundle.
-# Install: dsh plugin --profile <name> add github:homily707/dsh-session-header
+# Install: dsh plugin --profile <name> add github:EmotionTowel/dsh-session-header
 #
 # Configuration:
 #   header           - HTTP header name to inject (default x-session-id)
