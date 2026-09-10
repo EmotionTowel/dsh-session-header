@@ -63,6 +63,72 @@ dsh --patch ./my-overlay.yml
 | `toolEndpoints` | string[] | `[]` | URL prefixes matched during tool execution. When non-empty, fetches inside a `tools/execute` waterfall — e.g. a gateway web-search Messages API called from a tool — get the header only when their URL starts with one of these prefixes; third-party tool targets (web_fetch of arbitrary pages, GitHub, MCP servers) stay untouched. Empty (default) keeps the upstream LLM-only injection. |
 | `overwriteHeaders` | string[] | `[]` | Header names this plugin may overwrite when they already carry a value. Everything else keeps the "never overwrite" rule. Some official providers hard-code placeholder values (e.g. `dsh-web-search-deepseek` sends `x-opencode-session: dsh-web-search`), which gateways reject as missing; list the header here (`overwriteHeaders: [x-opencode-session]`) so the live session id replaces that placeholder. Case-insensitive. |
 
+## Adapting to the OpenCode Go gateway
+
+[OpenCode Go](https://opencode.ai/docs/go/) is a $10/month subscription gateway whose docs require a stable session header (`x-opencode-session`) on every request; a request without one is rejected at the routing layer:
+
+```
+400 {"type":"MissingSessionID","message":"... Request is missing x-opencode-session ..."}
+```
+
+That page's "Known Problematic Clients" section names DeepSeek Harness as well (session information is missing on some model paths). The three steps below are the complete adaptation — **you do not need to read the OpenCode Go docs separately**.
+
+### 1. Conversation requests (LLM)
+
+Point the injected header at the name the gateway expects:
+
+```yaml
+# ~/.dsh/profiles/<name>/cordis.patch.yml
+- id: session-header
+  config:
+    header: x-opencode-session
+    toolEndpoints:
+      - https://opencode.ai/zen/go/v1
+```
+
+### 2. web-search (gateway fetches during tool execution)
+
+Go's web search goes through an Anthropic Messages endpoint. That fetch happens during **tool execution**, outside an LLM call's stream, so only `toolEndpoints` can bring it into the injection scope. Add `overwriteHeaders` too, so a hard-coded placeholder value can never be mistaken for a missing header:
+
+```yaml
+- id: session-header
+  config:
+    header: x-opencode-session
+    toolEndpoints:
+      - https://opencode.ai/zen/go/v1
+    overwriteHeaders:
+      - x-opencode-session
+```
+
+> `toolEndpoints` matches URL prefixes only, so third-party tool targets (web_fetch of arbitrary pages, GitHub, MCP servers) stay untouched.
+
+### 3. headless
+
+**Plugins are per profile**: installing into web gives headless nothing, and `dsh --profile headless "..."` without the header is rejected by the gateway with the same 400. To use the Go gateway from headless, install it there as well (same spec as the Install section above):
+
+```sh
+dsh plugin --profile headless add <the source used in the Install section above>
+```
+
+```yaml
+# ~/.dsh/profiles/headless/cordis.patch.yml
+- id: session-header
+  config:
+    header: x-opencode-session
+    toolEndpoints:
+      - https://opencode.ai/zen/go/v1
+```
+
+Verify (`exit=0` with a normal answer means it works):
+
+```sh
+dsh --profile headless "run the pwsh command Get-Random -Maximum 1000000 and reply with only that number"
+```
+
+### When you do not need this plugin
+
+Talking to the DeepSeek API directly (`api.deepseek.com`) needs none of the above — the `llm-deepseek` adapter already sends `x-deepseek-harness-session-id` on every request.
+
 ## Verify it
 
 Point a provider's `baseURL` at a logging gateway (or any endpoint that echoes request headers) and start a session:
@@ -82,3 +148,4 @@ Every request of the same conversation carries the same id; a spawned subagent's
 ## License
 
 [MIT](LICENSE)
+
