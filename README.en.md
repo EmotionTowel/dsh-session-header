@@ -28,7 +28,7 @@ Requires the `dsh` CLI and Node ≥ 22.
 ### As a bundle (recommended)
 
 ```sh
-dsh plugin --profile <name> add github:homily707/dsh-session-header
+dsh plugin --profile <name> add github:EmotionTowel/dsh-session-header
 ```
 
 This package is plain JavaScript with no build scripts, so the pnpm ≥ 10 build allowance is not needed. Verify the layer and boot:
@@ -104,10 +104,10 @@ Go's web search goes through an Anthropic Messages endpoint. That fetch happens 
 
 ### 3. headless
 
-**Plugins are per profile**: installing into web gives headless nothing, and `dsh --profile headless "..."` without the header is rejected by the gateway with the same 400. To use the Go gateway from headless, install it there as well (same spec as the Install section above):
+**Plugins are per profile**: installing into web gives headless nothing, and `dsh --profile headless "..."` without the header is rejected by the gateway with the same 400. To use the Go gateway from headless, install it there as well :
 
 ```sh
-dsh plugin --profile headless add <the source used in the Install section above>
+dsh plugin --profile headless add github:EmotionTowel/dsh-session-header
 ```
 
 ```yaml
