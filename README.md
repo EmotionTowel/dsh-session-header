@@ -28,7 +28,7 @@ harness 没有请求级 header 缝——`GenerateOptions` 没有 headers 字段�
 ### 作为 bundle 安装（推荐）
 
 ```sh
-dsh plugin --profile <name> add github:homily707/dsh-session-header
+dsh plugin --profile <name> add github:EmotionTowel/dsh-session-header
 ```
 
 本包是纯 JavaScript、无构建脚本，不需要 pnpm ≥ 10 的构建授权。验证层并启动：
@@ -104,10 +104,10 @@ Go 的 web-search 走 Anthropic Messages 端点，那次 fetch 发生在**工具
 
 ### 3. headless
 
-**每个 profile 的插件是独立的**：装进 web 不会让 headless 也有；而 `dsh --profile headless "..."` 缺 header 会被网关以同样的 400 拒绝。要用 Go 网关跑 headless，就得给它也装一遍（来源用上面「安装」节的同一个 spec）：
+**每个 profile 的插件是独立的**：装进 web 不会让 headless 也有；而 `dsh --profile headless "..."` 缺 header 会被网关以同样的 400 拒绝。要用 Go 网关跑 headless，就得给它也装一遍：
 
 ```sh
-dsh plugin --profile headless add <上面「安装」节用的来源>
+dsh plugin --profile headless add github:EmotionTowel/dsh-session-header
 ```
 
 ```yaml
